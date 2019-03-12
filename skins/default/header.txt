@@ -1,0 +1,49 @@
+<div class="header">
+  <div class="title"><h1>$<project_name></h1>$<title></div>
+    <div class="status"><th1>
+ if {[info exists login]} {
+   html "$login — <a href='$home/login'>Logout</a>\n"
+ } else {
+   html "<a href='$home/login'>Login</a>\n"
+ }
+    </th1></div>
+</div>
+<div class="mainmenu">
+<th1>
+proc menulink {url name cls} {
+  upvar current_page current
+  upvar home home
+  if {[string range $url 0 [string length $current]] eq "/$current"} {
+    html "<a href='$home$url' class='active $cls'>$name</a>\n"
+  } else {
+    html "<a href='$home$url' class='$cls'>$name</a>\n"
+  }
+}
+html "<a id='hbbtn' href='#'>&#9776;</a>"
+menulink $index_page Home {}
+if {[anycap jor]} {
+  menulink /timeline Timeline {}
+}
+if {[hascap oh]} {
+  menulink /dir?ci=tip Files desktoponly
+}
+if {[hascap o]} {
+  menulink  /brlist Branches desktoponly
+  menulink  /taglist Tags wideonly
+}
+if {[anycap 23456] || [anoncap 2] || [anoncap 3]} {
+  menulink /forum Forum wideonly
+}
+if {[hascap r]} {
+  menulink /ticket Tickets wideonly
+}
+if {[hascap j]} {
+  menulink /wiki Wiki wideonly
+}
+if {[hascap s]} {
+  menulink /setup Admin {}
+} elseif {[hascap a]} {
+  menulink /setup_ulist Users {}
+}
+</th1></div>
+<div id='hbdrop'></div>

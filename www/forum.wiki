@@ -1,0 +1,448 @@
+<title>Fossil Forums</title>
+
+<h2>Introduction</h2>
+
+As of Fossil 2.7, Fossil includes a built-in discussion forum feature.
+
+Any project complex enough to benefit from being managed by Fossil and
+which has more than one user can probably also benefit from having a
+discussion forum. Even if your project has a discussion forum already,
+there are many benefits to using Fossil's built-in forum feature, some
+of which you cannot get by using third-party alternatives:
+
+  *  <b>Easy to Administer:</b> Third-party discussion forum and mailing
+     list software tends to be difficult to install, set up, and
+     administer. The Fossil forum feature aims to be as close to
+     zero-configuration as is practical.
+
+  *  <b>Malefactor Resistant:</b> Because Fossil accepts forum posts
+     only via the web UI, it is inherently [./antibot.wiki | protected
+     against bots].
+
+  *  <b>Distributed and Tamper-Proof:</b> Posts are stored in the Fossil
+     repository using the same [./fileformat.wiki | block chain technology]
+     that Fossil uses to store your check-ins, wiki documents, etc.
+     Posts sync to cloned repositories in a tamper-proof fashion.
+
+  *  <b>Space Efficient:</b> Because of Fossil's [./delta_format.wiki |
+     delta compression technology], discussions add little to the size
+     of a cloned repository. Ten years of the SQLite project's
+     discussions — averaging about 2 dozen posts per day — compress down
+     to [https://fossil-scm.org/forum/forumpost/9b6f3f36bdb | just
+     35&nbsp;MB of space] in a Fossil forum repository.
+
+  *  <b>Built-in Full-Text Search:</b> Fossil forums use
+     [https://sqlite.org/fts3.html | SQLite's powerful FTS4 engine] to
+     handle searches. If your project currently uses a mailing list for
+     discussions, this means you are no longer reliant upon third-party
+     mailing list archive services to provide a useful search engine for
+     your discussions. If you are running a private Fossil repository,
+     you may not even have the <em>option</em> of delegating this useful
+     service to a third-party; Fossil provides this service out of the
+     box.
+
+  *  <b>One Result Per Matching Post:</b> When you search the forum
+     archives via the Fossil web interface, you get only one result for
+     each matching post. When you search for project information via a
+     standard web search engine, you might get a result from the project
+     site's own mail archive plus one from Nabble, one from Gmane, one
+     from The Mail Archive...
+
+  *  <b>Search Off-Line:</b> Because Fossil is a [./concepts.wiki |
+     distributed version control system], project members can search
+     your forum archive while disconnected from the network where the
+     central Fossil instance runs. Your past discussions are potentially
+     just as valuable as a wiki document or checkin comment: there is no
+     good reason why you should have to wait to get back on the Internet
+     or back to the office before you can search for past posts.
+
+  *  <b>Contribute Off-Line:</b> Fossil forum posts work like any other
+     insertion into the repository, so a user can create new threads and
+     reply to existing ones while off-line, then sync their
+     contributions to the server they cloned from when back on-line.
+     Yes, you can post to the forum from inside a tent, miles from the
+     nearest wifi router or cellular data tower.
+
+  *  <b>Interlink with Other Fossil-Managed Artifacts:</b> Because forum
+     posts are normal Fossil artifacts, you can interlink them with
+     other Fossil artifacts using short internal links: link to forum
+     threads from a [./tickets.wiki | ticket], link to a wiki document
+     from a forum post, etc.
+
+  *  <b>Durable Links:</b> Once you create a valid internal artifact
+     link in Fossil, it <em>remains</em> valid, durably. With
+     third-party forum software and mailing list search engines, your
+     links are only valid until the third-party component changes its
+     URL scheme or disappears from the web.
+
+  *  <b>Role-Based Access Control:</b> The forum uses the same
+     [https://en.wikipedia.org/wiki/Role-based_access_control | RBAC
+     system] that Fossil uses to control all other repository accesses.
+     The Fossil forum feature simply adds several new fine-grained
+     capability bits to the existing system.
+
+  *  <b>Enduring, Open File Format:</b> Since Fossil has an
+     [./fileformat.wiki | open and well-documented file format], your
+     discussion archives are truly that: <em>archives</em>. You are no
+     longer dependent on the lifetime and business model of a
+     third-party piece of software or service. Should you choose to stop
+     using Fossil, you can easily extract your discussion traffic for
+     transfer to another system.
+
+  *  <b>Lightweight Markup:</b> Posts can be marked up using Fossil's
+     existing [/md_rules | Markdown] and [/wiki_rules | Wiki] markup
+     processors. No longer must you choose between two bad options: to
+     restrict posts to plain text only or to allow wild-west
+     HTML-formatted MIME email. Fossil's lightweight markup language
+     formatting features give you a middle path, providing your users
+     enough formatting power to communicate complex ideas well without
+     providing so much power as to risk
+     [https://wonko.com/post/html-escaping | security problems].
+
+  *  <b>Easy Email Alerts:</b> You can configure Fossil to
+     [./alerts.md | send email alerts]. Forum post emails include the
+     complete message content for the benefit of those that prefer to
+     visit the forum only when they need to post something.  Alerts are
+     optional, and each user gets the choice of immediate or daily
+     digest delivery.
+
+
+<h2 id="setup">Setting up a Fossil Forum</h2>
+
+<h3 id="caps">Capabilities</h3>
+
+Fossil forums use the same role-based access control mechanism as
+for normal Fossil repository logins.
+
+There are several dedicated forum-related capability bits you can grant
+a user:
+
+  *  <b>Read Forum</b> (<tt>2</tt>): The user may read forum posts.
+
+  *  <b>Write Forum</b> (<tt>3</tt>): The user may create new forum
+     threads, reply to existing threads, and edit their own posts. New
+     posts are held for moderation, and they are marked to prevent them
+     from being included in clone and sync operations.
+
+  *  <b>WriteTrusted Forum</b> (<tt>4</tt>): Same as <b>Write Forum</b>
+     except that forum updates bypass the [#moderation | moderation and
+     private artifact restrictions].
+
+  *  <b>Moderate Forum</b> (<tt>5</tt>): User gets buttons on posts
+     which allow them to either reject or approve posts held for
+     moderation. User also gets access to a page (<tt>/modreq</tt>)
+     showing the list of pending moderation tasks.
+
+  *  <b>Supervise Forum</b> (<tt>6</tt>): User can grant or revoke
+     <b>WriteTrusted</b> capability for other users. (Currently
+     unimplemented.)
+
+  *  <b>Email Alerts</b> (<tt>7</tt>): User can sign themselves up for
+     email alerts, a.k.a. notifications.
+
+By default, no Fossil user has permission to use the forums except for
+users with Setup and Admin capabilities, which get these as part of the
+large package of other capabilities they get.
+
+For public Fossil repositories that wish to accept new users without
+involving a human, go into Admin &rarr; Access and enable the "Allow
+users to register themselves" setting. You may also wish to give users
+in the <tt>anonymous</tt> category the Read Forum (2) and Write Forum
+(3) capabilities: this allows people to post without creating an account
+simply by solving [./antibot.wiki | a simple CAPTCHA].
+
+For a private repository, you probably won't want to give the
+<tt>anonymous</tt> user any forum access, but you may wish to give the
+Read Forum capability (2) to users in the <tt>reader</tt> category.
+
+For either type of repository, you are likely to want to give at least
+the WriteTrusted capability (4) to users in the <tt>developer</tt>
+category. If you did not give the Read Forum capability (2) to
+<tt>anonymous</tt> above, you should give <tt>developer</tt> that
+capability here if you choose to give it capability 3 or 4.
+
+If you want to use the email alert feature, by default only those
+users in the Setup and Admin user categories can make use of it. Grant
+the Email Alerts capability (7) to give others access to this feature.
+Alternately, you can handle alert signups outside of Fossil, with
+a Setup or Admin users manually signing users up via Admin &rarr;
+Notification. You'll want to grant this capability to the
+<tt>nobody</tt> user category if you want anyone to sign up without any
+restrictions.  Give it to <tt>anonymous</tt> instead if you want the
+user to solve a simple CAPTCHA before signing up. Or, give it to
+<tt>reader</tt> or <tt>developer</tt> if you want only users with Fossil
+logins to have this ability. (That's assuming you give one or both of
+these capabilities to every user on your Fossil repository.)
+
+By following this advice, you should not need to tediously add
+capabilities to individual accounts except in atypical cases, such as
+to grant the Moderate Forum capability (5) to an uncommonly
+highly-trusted user.
+
+
+<h3 id="skin">Skin Setup</h3>
+
+If you create a new Fossil repository with version 2.7 or newer, its
+default skin is already set up correctly for typical forum
+configurations.
+
+If you have an existing repository, you have two choices if you want its
+skin to be upgraded to support forums:
+
+<ol>
+  <li>Go into Admin &rarr; Skins and switch from your current skin to
+  one of the stock skins.  If you were on a stock skin, just switch away
+  from your current one to the actual stock skin, since they will be
+  different after the upgrade.</li>
+
+  <li>If you have local customization that you do not want to throw
+  away, you can use the diff feature of Fossil's skin editor to show how
+  the skins differ.</li>
+</ol>
+
+The remainder of this section summarizes the differences you're expected
+to see when taking option #2.
+
+The first thing is that you'll need to add something like the following
+to the Header part of the skin to create the navbar link:
+
+<verbatim>
+  if {[anycap 23456] || [anoncap 2] || [anoncap 3]} {
+    menulink /forum Forum
+  }
+</verbatim>
+
+These rules say that any logged-in user with any forum-related
+capability (2-6 inclusive, as of this writing) or an anonymous user with
+read or write capability on the forum (2, 3) will see the "Forum" navbar
+link, which just takes you to <tt>/forum</tt>.
+
+The exact code you need here varies depending on which skin you're
+using. Follow the style you see for the other navbar links.
+
+The new forum feature also brings many new CSS styles to the table. If
+you're using the stock skin or something sufficiently close, the changes
+may work with your existing skin as-is. Otherwise, you might need to
+adjust some things, such as the background color used for the selected
+forum post:
+
+<verbatim>
+  div.forumSel {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+</verbatim>
+
+That overrides the default — a hard-coded light cyan — with a 95%
+transparent black overlay instead, which simply darkens your skin's
+normal background color underneath the selected post. That should work
+with almost any background color except for very dark background colors.
+For dark skins, an inverse of the above trick will work better:
+
+<verbatim>
+  div.forumSel {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+</verbatim>
+
+That overlays the background with 5% white to lighten it slightly.
+
+Another new forum-related CSS style you might want to reflect into your
+existing skin is:
+
+<verbatim>
+  div.forumPosts a:visited {
+    color: #6A7F94;
+  }
+</verbatim>
+
+This changes the clicked-hyperlink color for the forum post links on the
+main <tt>/forum</tt> page only, which allows your browser's history
+mechanism to show which threads a user has read and which not. The link
+color will change back to the normal link color — indicating "unread" —
+when a reply is added to an existing thread because that changes where
+the link from the <tt>/forum</tt> page points, taking you to the newest
+post in the thread.
+
+The color given above is suitable for the stock skin.
+
+Beware that when changing this example, there are some
+[https://hacks.mozilla.org/2010/03/privacy-related-changes-coming-to-css-vistited/
+| stringent restrictions] in modern browsers to prevent snoopy web sites
+from brute-forcing your browsing history. (See the link for the method,
+which explains the restrictions.)
+
+
+<h3 id="search">Enable Forum Search</h3>
+
+One of the underlying assumptions of the forum feature is that you will
+want to be able to search the forum archives, so the <tt>/forum</tt>
+page always includes a search box. Since that depends on search being
+enabled on the Fossil repository, Fossil warns that search is disabled
+until you go into Admin &rarr; Search and enable the "Search Forum"
+setting.
+
+You may want to enable some of the other Fossil search features while
+you're in there. All of this does come at some CPU and I/O cost, which
+is why it's disabled by default.
+
+
+<h3 id="sso">Single Sign-On</h3>
+
+If you choose to host your discussion forums within the same repository
+as your project's other Fossil-managed content, you inherently have a
+single sign-on system. Contrast third-party mailing list and forum
+software where you either end up with two separate user tables and
+permission sets, or you must go to significant effort to integrate the
+two login systems.
+
+You may instead choose to host your forums in a Fossil repository
+separate from your project's main Fossil repository. A good reason to do
+this is that you have a public project where very few of those
+participating in the forum have special capability bits for project
+assets managed by Fossil, so you wish to segregate the two user sets.
+
+Yet, what of the users who will have logins on both repositories? Some
+users will be trusted with access to the project's main Fossil
+repository, and these users will probably also participate in the
+project's Fossil-hosted forum. Fossil has a feature to solve this
+problem which is probably less well known than it should be, and which
+has been a feature of Fossil since April of 2011: Admin &rarr;
+Login-Group. This allows one Fossil repository to recognize users
+authorized on a different Fossil repository.
+
+
+<h3 id="alerts">Email Alerts (a.k.a. Notifications)</h3>
+
+Internet email service has become rather complicated since its initial
+simple and insecure implementation decades ago. Fossil's role in all of
+this is rather small at the moment, but the details of the integration
+are complex enough to justify [./alerts.md | a separate document].
+
+(The other reason that document is separate is that Fossil's email
+alerts system also gets used by features of Fossil other than the
+forum.)
+
+
+<h2 id="access">Accessing the Forum</h2>
+
+There are many paths to a repository's Fossil forum:
+
+<ul>
+  <li>
+    <p>If you're using the default Fossil skin as shipped with Fossil
+    2.7 or one updated to include the changes since 2.6 or prior, there
+    is a Forum button in the navbar which appears for users with any of
+    the forum-related user capabilities: 2 through 6 inclusive for those
+    with repository logins, or caps 2 and 3 for users without a user
+    account but who have solved the Anonymous user CAPTCHA.</p>
+    <p>This button will not appear in the default skin for such users if
+    their browser window is not greater than 1200 pixels wide.  The
+    Fossil admin can adjust this limit in the skin's CSS section, down
+    near the bottom in the definition of the `wideonly` style.</p>
+  </li>
+
+  <li>The other stock skins have this button in them as of 2.7 as well,
+  without the screen width restriction, since the navbar in those skins
+  wraps on narrow screens more gracefully than the default skin
+  does.</li>
+
+  <li>Users who set up their Fossil repository under prior versions and
+  who now have local skin changes they don't want to overwrite by
+  reverting to the stock 2.7 version of the skin they chose to start
+  with can easily [#skin | edit their skin] to include these links.</li>
+
+  <li>A "Forum" link appears in the drop-down panel when you click the
+  default skin's hamburger menu (&#9776;) while logged in as any user
+  with one or more of the [#caps | user capabilities listed above].</li>
+
+  <li>That same link also appears on the repository's <tt>/sitemap</tt>
+  page, since it provides the content for the hamburger menu's
+  panel.</li>
+</ul>
+
+
+<h2 id="moderation">How Moderation Works</h2>
+
+In this section, we're going to call all of the following a "forum
+update:"
+
+  *  create a new post
+  *  reply to an existing post
+  *  edit a post or reply
+
+When a person with the normal <b>Write Forum</b> capability (<tt>3</tt>)
+updates the forum, Fossil saves the update in its block chain, but this
+update is impermanent because of two other table updates made at the
+same time:
+
+<ol>
+    <li>Fossil saves the update artifact's ID in its <tt>private</tt>
+    table, preventing Fossil from sending such artifacts to any of the
+    repository's clones.  (This is the same mechanism behind
+    [./private.wiki | private branches].)</li>
+
+    <li>Fossil also adds a reference to that artifact in the
+    <tt>modreq</tt> table, which backs the moderation feature.  This is
+    what causes Fossil to leave out the Reply button when rendering that
+    post's HTML in the forum's web interface.</li>
+</ol>
+
+When a moderator approves an update, Fossil deletes these table entries,
+making the update semi-permanent. This changes how Fossil renders the
+HTML for that update. It also means the artifact will now sync to
+clones, if the sync is done by a user with <b>Check-Out</b> capability
+(<tt>o</tt>).
+
+When a forum user edits a moderator-approved artifact, what actually
+happens under the hood is that Fossil writes another artifact to the
+repository which refers to the original version as its parent, causing
+Fossil UI to present the new version instead of the original. The
+original version remains in the repository, just as with historical
+checkins. The parent must remain in the repository for referential
+integrity purposes.
+
+When you "Delete" a moderator-approved post or reply through Fossil UI,
+it's actually an edit with blank replacement content. The only way to
+truly delete such artifacts is through [./shunning.wiki | shunning].
+
+When a user with <b>WriteTrusted Forum</b> capability (<tt>4</tt>)
+updates the forum, it happens in the same way except that Fossil skips
+the <tt>private</tt> and <tt>modreq</tt> table insertions.
+
+When a moderator rejects an update, that artifact is unceremoniously
+removed from the tip of the block chain. This is safe because Fossil
+prevents replies to a reply or post awaiting moderator approval, so
+referential integrity cannot be harmed.  Rejecting an edit is even
+safer, since the original post remains behind, so that replies continue
+to refer to that original post.
+
+
+<h2 id="mod-user">Using the Moderation Feature</h2>
+
+Having described all of the work that Fossil performs under the hood on
+behalf of its users, we can now give the short list of work left for the
+repository's administrators and moderators:
+
+<ol>
+    <li>Add the <b>Moderate Forum</b> capability (<tt>5</tt>) to any of
+    your users who should have this ability. You don't need to do this
+    for any user with Setup (<tt>s</tt>) or Admin (<tt>a</tt>)
+    capability; it's
+    [http://fossil-scm.org/index.html/artifact/b16221ffb736caa2?ln=1246-1257
+    | already included].</li>
+
+    <li>When someone updates the forum, an entry will appear in the
+    timeline if the type filter is set to "Forum" or "Any Type". If that
+    user has only the <b>Write Forum</b> capability (<tt>3</tt>), any
+    other user with the <b>Moderate Forum</b> capability (<tt>5</tt>)
+    will see a conditional link appear at the top of the main forum
+    page: "Moderation Requests".  Clicking this takes the moderator to
+    the <tt>/modreq</tt> page. A moderator may wish to keep the main
+    forum page open in a browser tab, reloading it occasionally to see
+    when the "Moderation Requests" link reappears.</li>
+
+    <li>A moderator viewing an update pending moderation sees two
+    buttons at the bottom, "Approve" and "Reject" in place of the
+    "Delete" button that the post's creator sees. Beware that both
+    actions are durable and have no undo. Be careful!</li>
+</ol>
